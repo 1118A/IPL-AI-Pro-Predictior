@@ -33,11 +33,16 @@ def get_proactive_predictions():
     }
     
     for match in upcoming_matches:
-        teamA = match['team1']
-        teamB = match['team2']
-        venue = match['venue']
-        date = match['date']
-        pitch = match['pitch_type']
+        teamA = match.get('team1', 'TBD')
+        teamB = match.get('team2', 'TBD')
+        venue = match.get('venue', 'Unknown Venue')
+        date = match.get('date', 'TBD')
+        pitch = match.get('pitch_type', 'Balanced')
+
+        # Skip matches where teams couldn't be determined
+        if teamA == 'TBD' or teamB == 'TBD' or teamA == teamB:
+            print(f"[Upcoming] Skipping match with unresolved teams: {match}")
+            continue
         
         # In a real scheduling match, toss winner isn't known. 
         # We process both scenarios or assume Home Team toss win for baseline proactive logic.

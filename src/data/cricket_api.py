@@ -56,24 +56,61 @@ def _generate_mock_matches():
         
     return matches
 
+def _normalize_api_match(raw_match):
+    """
+    Normalizes a raw match dict from CricAPI to a consistent internal format
+    with guaranteed keys: team1, team2, venue, date, pitch_type.
+    """
+    # CricAPI v1 uses a 'teams' list or 'teamInfo' list for team names
+    teams = raw_match.get('teams', [])
+    team_info = raw_match.get('teamInfo', [])
+
+    if len(teams) >= 2:
+        team1, team2 = teams[0], teams[1]
+    elif len(team_info) >= 2:
+        team1 = team_info[0].get('name', 'TBD')
+        team2 = team_info[1].get('name', 'TBD')
+    else:
+        team1 = raw_match.get('team1', raw_match.get('team-1', 'TBD'))
+        team2 = raw_match.get('team2', raw_match.get('team-2', 'TBD'))
+
+    venue = ''
+    venue_info = raw_match.get('venue', {})
+    if isinstance(venue_info, dict):
+        venue = venue_info.get('name', '')
+    elif isinstance(venue_info, str):
+        venue = venue_info
+
+    return {
+        'id': raw_match.get('id', ''),
+        'date': raw_match.get('date', ''),
+        'venue': venue,
+        'team1': team1,
+        'team2': team2,
+        'pitch_type': raw_match.get('pitch_type', 'Balanced'),
+    }
+
+
 def fetch_upcoming_matches():
     """
     Fetches the schedule of upcoming matches.
     Uses mock data if API key is not set.
+    Always returns a list of dicts with keys: team1, team2, venue, date, pitch_type.
     """
     if not CRIC_API_KEY or CRIC_API_KEY == "dummy_cric_api_key":
         print("[Cricket API] Using mock upcoming schedule (No API Key)")
         return _generate_upcoming_mock_matches()
-        
+
     url = f"https://api.cricapi.com/v1/matches?apikey={CRIC_API_KEY}&offset=0"
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json().get('data', [])
-            # Filter matches happening in the future
             from datetime import datetime
-            upcoming = [m for m in data if m.get('date', '2000-01-01') > datetime.now().strftime("%Y-%m-%d")]
-            return upcoming[:5]
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            upcoming_raw = [m for m in data if m.get('date', '2000-01-01') > today_str]
+            # Normalize each match to the expected internal format
+            return [_normalize_api_match(m) for m in upcoming_raw[:5]]
         else:
             return _generate_upcoming_mock_matches()
     except Exception:
