@@ -92,22 +92,38 @@ with tab1:
                     for i, match_info in enumerate(upcoming_data):
                         pred = match_info['prediction']
                         weather = match_info['weather']
-                        
-                        teamA, teamB = pred['match'].split(" vs ")
-                        
+
+                        # Safe team name split
+                        match_parts = pred['match'].split(" vs ", 1)
+                        teamA = match_parts[0].strip() if len(match_parts) == 2 else pred['match']
+                        teamB = match_parts[1].strip() if len(match_parts) == 2 else ''
+
+                        # Safe probability access with float cast
+                        prob_A = round(float(pred['probabilities'].get(teamA, 50.0)), 2)
+                        prob_B = round(float(pred['probabilities'].get(teamB, 50.0)), 2)
+
+                        # Safe key players access with fallback
+                        kp = pred.get('key_players', [])
+                        kp_html = ''.join(
+                            f'<li>{p["name"]} (Score: {p["impact_score"]})</li>'
+                            for p in kp[:2]
+                        ) if kp else '<li>Player data not available for this match</li>'
+
+                        risk_color = '#d73a49' if pred['risk_level'] == 'High' else '#dbab09' if pred['risk_level'] == 'Medium' else '#28a745'
+
                         st.markdown(f"""
                         <div class="glass-card">
                             <h2 style="color: white; margin-top:0;">{pred['match']}</h2>
                             <p style="color: #8b949e; margin-bottom: 20px;">
-                                📅 <b>Date:</b> {match_info['date']} &nbsp;|&nbsp; 
-                                🏟️ <b>Venue:</b> {match_info['venue']} &nbsp;|&nbsp; 
-                                ☁️ <b>Weather:</b> {weather['condition']} ({weather['temp']}°C)
+                                📅 <b>Date:</b> {match_info['date']} &nbsp;|&nbsp;
+                                🏟️ <b>Venue:</b> {match_info['venue']} &nbsp;|&nbsp;
+                                ☁️ <b>Weather:</b> {weather.get('condition','N/A')} ({weather.get('temp','?')}°C)
                             </p>
                             <hr style="border-color: rgba(255,255,255,0.1);"/>
                             <div class="win-prob-title">Win Probabilities</div>
                             <div style="display: flex; gap: 20px; margin-bottom: 15px;">
-                                <div><span class="metric-label">{teamA}</span><br><span class="metric-value">{pred['probabilities'][teamA]}%</span></div>
-                                <div><span class="metric-label">{teamB}</span><br><span class="metric-value">{pred['probabilities'][teamB]}%</span></div>
+                                <div><span class="metric-label">{teamA}</span><br><span class="metric-value">{prob_A}%</span></div>
+                                <div><span class="metric-label">{teamB}</span><br><span class="metric-value">{prob_B}%</span></div>
                             </div>
                             <hr style="border-color: rgba(255,255,255,0.1);"/>
                             <div style="display: flex; gap: 40px; margin-bottom: 20px;">
@@ -116,19 +132,18 @@ with tab1:
                                 <div><span class="metric-label">Promo Pick</span><br><span style="color: white; font-weight: bold;">{pred['picks']['promo']}</span></div>
                             </div>
                             <span class="metric-label">Key Impact Players</span>
-                            <ul style="color: #c9d1d9; margin-top: 5px;">
-                                <li>{pred['key_players'][0]['name']} (Score: {pred['key_players'][0]['impact_score']})</li>
-                                <li>{pred['key_players'][1]['name']} (Score: {pred['key_players'][1]['impact_score']})</li>
-                            </ul>
+                            <ul style="color: #c9d1d9; margin-top: 5px;">{kp_html}</ul>
                             <div style="margin-top: 15px;">
-                                <span style="background-color: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 4px; font-size: 0.9em; border-left: 4px solid {'#d73a49' if pred['risk_level'] == 'High' else '#dbab09' if pred['risk_level'] == 'Medium' else '#28a745'};">
+                                <span style="background-color: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 4px; font-size: 0.9em; border-left: 4px solid {risk_color};">
                                     Investment Risk: <b>{pred['risk_level']}</b>
                                 </span>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
             except Exception as e:
+                import traceback
                 st.error(f"Critical System Error: {str(e)}")
+                st.code(traceback.format_exc())
 
 
 # ----------------- TAB 2: CUSTOM PREDICTOR -----------------
@@ -159,15 +174,26 @@ with tab2:
                 try:
                     predictor = MatchPredictor()
                     result = predictor.predict(teamA, teamB, toss_winner, pitch_type, weather_cond, venue_size)
-                    
+
+                    # Safe probability cast
+                    prob_A = round(float(result['probabilities'].get(teamA, 50.0)), 2)
+                    prob_B = round(float(result['probabilities'].get(teamB, 50.0)), 2)
+
+                    # Safe key players with fallback
+                    kp2 = result.get('key_players', [])
+                    kp2_html = ''.join(
+                        f'<li>{p["name"]} (Score: {p["impact_score"]})</li>'
+                        for p in kp2[:2]
+                    ) if kp2 else '<li>Player data not available</li>'
+
                     st.markdown(f"""
                         <div class="glass-card">
                             <h2 style="color: white; margin-top:0;">{result['match']}</h2>
                              <hr style="border-color: rgba(255,255,255,0.1);"/>
                              <div class="win-prob-title">Win Probabilities</div>
                              <div style="display: flex; gap: 20px; margin-bottom: 15px;">
-                                 <div><span class="metric-label">{teamA}</span><br><span class="metric-value">{result['probabilities'][teamA]}%</span></div>
-                                 <div><span class="metric-label">{teamB}</span><br><span class="metric-value">{result['probabilities'][teamB]}%</span></div>
+                                 <div><span class="metric-label">{teamA}</span><br><span class="metric-value">{prob_A}%</span></div>
+                                 <div><span class="metric-label">{teamB}</span><br><span class="metric-value">{prob_B}%</span></div>
                              </div>
                              <hr style="border-color: rgba(255,255,255,0.1);"/>
                             <div style="display: flex; gap: 40px; margin-bottom: 20px;">
@@ -176,11 +202,10 @@ with tab2:
                                 <div><span class="metric-label">Promo Pick</span><br><span style="color: white; font-weight: bold;">{result['picks']['promo']}</span></div>
                             </div>
                              <span class="metric-label">Key Impact Players</span>
-                             <ul style="color: #c9d1d9; margin-top: 5px;">
-                                <li>{result['key_players'][0]['name']} (Score: {result['key_players'][0]['impact_score']})</li>
-                                <li>{result['key_players'][1]['name']} (Score: {result['key_players'][1]['impact_score']})</li>
-                             </ul>
+                             <ul style="color: #c9d1d9; margin-top: 5px;">{kp2_html}</ul>
                         </div>
                     """, unsafe_allow_html=True)
                 except Exception as e:
+                    import traceback
                     st.error(f"Error generating strategy: {str(e)}")
+                    st.code(traceback.format_exc())
