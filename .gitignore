@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Data & Models (large files - add specific ones if needed)
+data/raw/
+models/saved_models/*.pkl
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets
+.env
+src/config.py
+
+# OS
+.DS_Store
+Thumbs.db
